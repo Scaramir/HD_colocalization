@@ -1,1 +1,2 @@
-/results
+results/quantification_results.csv
+results/*.ipynb
