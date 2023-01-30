@@ -16,5 +16,4 @@ The following scripts can be run in a juypyter notebook or as a normal python3 s
    - the mean intensity of each marker (also colocalized)
    - the relative amount of signal of each marker in regards to the area of DAPI. This normalizes the signal of the markers in regards to the size and amount of the nuclei in each image.
 
-The data is available upon request.  
 Also, i will further update this repository with more detailed information about the scripts and the analysis.  
