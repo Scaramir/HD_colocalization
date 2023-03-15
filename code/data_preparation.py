@@ -7,12 +7,9 @@
 # ----------------------------------------------------------------------------------------------- #
 # Global parameters:
 # Set the working directory, where all the data is stored:
-#wd = "S:/mdc_work/mdc_huntington/images/Cortical Organoids"
-#wd = "S:/mdc_work/mdc_huntington/images/NPCs new/"
-wd = "S:/mdc_work/mdc_huntington/images/305_308_70qP"
+wd = "S:/images/305_308_70qP"
 
 # The pre-processing will be applied to the following folders/conditions:
-#folders_list = ["combined"]
 folders_list = ["raw_data"]
 
 # Merge three fluorescent channels of the same image into one image.
@@ -30,8 +27,8 @@ ch_3_suf = "2"
 input_file_format = ".tiff"
 
 # Combine the images into one RGB-image?
-merge_to_rgb = True
-output_file_format = ".bmp"
+merge_to_rgb: bool = True
+output_file_format: str = ".bmp"
 
 # Min. bit-depth we want to check for:
 # Has the microscope used a >=12bit-color camera and an according sensitivity? 
@@ -58,7 +55,7 @@ def max_bits(min_bit_depth):
 def is_it_really_16_bit(file, max_value_of_min_bit_depth):
     pic_brighter_than_min_bit_depth = False
     f = open(file, 'rb')
-    tags = exifread.process_file(f)
+    tags = exifread.process_file(f) #type: ignore
     # Check max. brightness of the image (Larger than max(8bit)):
     if "Image SMaxSampleValue" in tags and str(tags["Image SMaxSampleValue"].values) > max_value_of_min_bit_depth:
         pic_brighter_than_min_bit_depth = True
@@ -90,8 +87,7 @@ def check_bit_depth(pic_folder_path):
     return pics_brighter_than_16_bit
 # test the first folder. The others are ususally stored in the same format.
 #check_bit_depth(pic_folder_path)                
-# none ok so far. --> they are stored and interpreted as rgb8 images 
-# even though they are just greyscale and the microscope is probably capable of capturing higher ranges. 
+
 
 # Merge the three channels of the same image into one image.
 # input: "picture folder path" string

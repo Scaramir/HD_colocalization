@@ -1,2 +1,3 @@
 results/quantification_results.csv
 results/*.ipynb
+.vscode/settings.json

@@ -15,6 +15,8 @@ Select if the previously applied gaussian filter was used or not (gaussian_filte
 These declarations are necessary for the script to find the correct files.
 Select, if you want to save the colocalization-masks as `.bmp files` or not.
 
+Notice that i will only work and generate plots, if you adjsuted the parts noted with `TODO`.
+
 In case some images are doubled, they can be previously filtered out by searching for "t0" or "Hoechst":
 ✗ cd Antimycin\ A_thresholded_super_low_intensities_filtered
 ✗ rm *t0*
@@ -24,17 +26,15 @@ This deletes all files, that contain "t0" or "Hoechst" in their name (case sensi
 (c) 2023, Maximilian Otto, Berlin.
 """
 # ----------------------------------------------------------------------------------------------- #
+# TODO: Change settings:
+
 # Path of the folder containing all thresholded folders
-#wd = "S:/mdc_work/mdc_huntington/images/NPCs new/"
-#wd = "S:/mdc_work/mdc_huntington/images/Cortical Organoids/"
-wd = "S:/mdc_work/mdc_huntington/images/305_308_70qP_306_050_in_one_plot/images/"
+wd = "S:/images/"
 
 # Set the normal/control condition folder name so you can compare multiple conditions
 # Set to "" if you just have one folder. This folder may contain multiple cell lines.
-#pic_condition_folder_path = "raw_data"
-#pic_condition_folder_path = "combined"
 pic_condition_folder_path = ""
-# Other treatments:
+# Other treatment examples to campare to:
 # - Antimycin A
 # - EDHB
 # - hypoxy
@@ -42,13 +42,10 @@ pic_condition_folder_path = ""
 
 # The quantification will be applied to the following list of folders/conditions:
 #treatment_list = ["normal", "Antimycin A", "EDHB", "hypoxy"]
-#treatment_list = ["combined"]
 treatment_list = [""]
 
 # Select the previously executed thrsholding mode, on which the quantification will be performed
-#threshold_mode = "background_filtered_combo_bs"
 threshold_mode = "otsu_triangle_otsu_bg_gauss_True"
-#threshold_mode = "background_filtered_combo_True_gauss"
 #threshold_mode = "super_low_intensities_5_filtered_bs"
 # Other options:
 #  - "triangle_on_dapi_intensity_greater_1_on_rest"
@@ -58,8 +55,11 @@ threshold_mode = "otsu_triangle_otsu_bg_gauss_True"
 #  - "triangle",
 #  - "adaptive"
 
-gauss_blur_filter = True  # Set to True or False, wheter you applied a gaussian filter or not 
-save_mask_as_bmp = True    # Want the area of CHCHD2 and TOM20 (colocalization) saved as an image? 
+# Set to True or False, wheter you applied a gaussian filter or not
+gauss_blur_filter = True   
+
+# Want the area of CHCHD2 and TOM20 (colocalization) saved as an image? 
+save_mask_as_bmp = True    
 # ----------------------------------------------------------------------------------------------- #
 
 import pandas as pd
@@ -223,7 +223,7 @@ def calculate_mean_intensity_of_2_markers(pic_folder_path, treatment_var="normal
                         # raw amounts:
                         "DAPI amount": ch1_counts_total,
                         "CHCHD2 amount": ch2_counts_total,
-                        "TOM20 amount": ch3_counts_total,
+                        "TOM-20 amount": ch3_counts_total,
                         # amounts normalized by DAPI amount per image:
                         "CHCHD2 amount normalized by DAPI": ch2_counts_total_normalized,
                         "TOM-20 amount normalized by DAPI": ch3_counts_total_normalized,
@@ -254,14 +254,13 @@ def calculate_mean_intensity_of_2_markers(pic_folder_path, treatment_var="normal
     # Get the cell line from the file name
     # TODO FIXME NOTE:
     # change this for the different file name structures to use this script with different data sets
-    # quantification_df["Cell line"] = quantification_df["File name"].str.split("_", expand=True)[2] #organoids or NPCs new
     quantification_df["Cell line"] = quantification_df["File name"].str.split("_", expand=True)[1]
 
     # Save the dataframe to a csv file
     quantification_df.to_csv(pic_folder_path + "_thresholded_" + threshold_mode + "/quantification.csv", index=False)
     return quantification_df
 
-# Run the quantification function
+# Run the quantification function only
 #quantification_df = calculate_mean_intensity_of_2_markers(pic_folder_path, treatment_var="normal", gaussian_filter=gauss_blur_filter, threshold_mode=threshold_mode, save_mask=save_mask_as_bmp)
 
 
@@ -295,11 +294,11 @@ def box_plt_by_cell_line(quantification_df, value_to_plot, pic_folder_path, cond
                         linewidth=0.5)
 
     # TODO: Change the names of the cell lines to the correct ones
+    all_box_pairs = list(combinations(["sm050", "sm305", "sm306", "sm308", "sm70qP"], 2))
     # TODO: adjust the statistical test to the correct one. 
     #       Mann-Whitney is used when the data is not normally distributed
     #       t-welch-test is used when the data is normally distributed and the variances are not equal
     #       t-test is used when the data is normally distributed and the variances are equal
-    all_box_pairs = list(combinations(["sm050", "sm305", "sm306", "sm308", "sm70qP"], 2))
     add_stat_annotation(ax, data=quantification_df, x="Cell line", y=value_to_plot,
                         box_pairs=all_box_pairs,
                         test="Mann-Whitney", comparisons_correction=None, text_format="star", loc="outside", verbose=2)
@@ -313,7 +312,7 @@ def box_plt_by_cell_line(quantification_df, value_to_plot, pic_folder_path, cond
 # Run the calculation for every treatment of the list of treatments and append the results to the dataframe
 # Create plots for each treatment within its seperated folder
 def quantification(treatment_list, threshold_mode="triangle_on_dapi_intensity_greater_1_on_rest", gaussian_filter=False, save_mask=False, pic_folder_path=pic_folder_path):
-    # Loop through the treatments
+    # Loop through the treatments to quantify each treatment seperately
     complete_df = pd.DataFrame()
     for treatment in treatment_list:
         # Get the path of the folder containing the images
@@ -323,6 +322,7 @@ def quantification(treatment_list, threshold_mode="triangle_on_dapi_intensity_gr
         print(f"Calculating condition \"" + treatment + "\"")
 
         current_quant_df = calculate_mean_intensity_of_2_markers(pic_folder_path, treatment_var=treatment, gaussian_filter=gaussian_filter, threshold_mode=threshold_mode, save_mask=save_mask)
+        # add quant data to the complete dataframe
         complete_df = complete_df.append(current_quant_df)
 
         for column in complete_df.select_dtypes(include=[float, int]):
