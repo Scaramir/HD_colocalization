@@ -8,15 +8,23 @@ This makes it easier to preprocess whole folders with the same technique instead
 # ----------------------------------------------------------------------------------------------- #
 # Set the working directory, where all the data is stored:
 #wd = "S:/mdc_work/mdc_huntington/images/Cortical Organoids"
-wd = "S:/mdc_work/mdc_huntington/images/305_308_70qP_306_050_in_one_plot/images/raw_data"
+wd = "S:/mdc_work/mdc_huntington/images/round2"
 
 # The threshold will be applied to the following folders/conditions:
 #folders_list = ["Antimycin A", "EDHB", "hypoxy", "normal"]
-folders_list = [""]
+folders_list = ["CHCHD2-AAV", "DMSO", "GFP-AAV", "NZ", "UT"]
+# folders_list = ["DMSO"]
+
+ch_prefix = "c0" # prefix for all channels
+ch1_suffix = "0" # Hoechst
+ch2_suffix = "1" # EGFP
+ch3_suffix = "2" # TOM20
+ch4_suffix = "3" # CHCHD2
 
 # Choose a threshold mode
 #threshold_mode = "background_filtered_combo"
-threshold_mode = "otsu_triangle_otsu_bg_gauss"
+# threshold_mode = "otsu_triangle_otsu_bg_gauss"
+threshold_mode = "otsu_otsu_otsu_otsu_gauss"
 # Other options:
 #  - "super_low_intensities_5_filtered"
 #  - "triangle_on_dapi_intensity_greater_1_on_rest"
@@ -31,7 +39,7 @@ threshold_mode = "otsu_triangle_otsu_bg_gauss"
 # Set an additional Background Substraction with Rolling ball method 
 # for all methods that don't have it already
 # set to True to activate, or False to disable
-additional_background_substraction = True
+additional_background_substraction = False
 
 # Want to apply a gaussian blur filter too?
 # this affects the thresholding results and increases the overlap fluorecence signal
@@ -63,41 +71,41 @@ def read_image(file):
     img = cv2.imread(file, -1)
     return img
 
-def substract_background(img, background_substraction, radius=50):
+## Read 4 corresponding greyscale images
+def read_4_color_channels_from_rgb(file_name):
+    base_channel = ch_prefix + ch1_suffix
+    ch1 = cv2.imread(file_name, -1)[:,:,-1]
+    ch2 = cv2.imread(file_name.replace(base_channel, ch_prefix + ch2_suffix), -1)[:,:,-1]
+    ch3 = cv2.imread(file_name.replace(base_channel, ch_prefix + ch3_suffix), -1)[:,:,-1]
+    ch4 = cv2.imread(file_name.replace(base_channel, ch_prefix + ch4_suffix), -1)[:,:,-1]
+    return ch1, ch2, ch3, ch4
+
+
+def substract_background(img, background_substraction, radius=100):
     # Apply a bacground substraction method to the image
     # Rolling Ball method from skimage.restoration
     if background_substraction:
-        background = restoration.rolling_ball(img, radius=radius, num_threads=4)
-        img = img - background
+        img -= restoration.rolling_ball(img, radius=radius, num_threads=16)
     return img
 
 # Apply thresholding to every color channel of the image.
 # input: "folder name" string
 def thresholding(pic_folder_path, pic_sub_folder_name, mode = "low_intensities_filtered", gaussian_blur = True, additional_background_substraction = True):
     if not os.path.isdir(pic_folder_path + f"/../{pic_sub_folder_name}_thresholded_{mode}_{additional_background_substraction}"):
-        os.makedirs(
-            pic_folder_path + f"/../{pic_sub_folder_name}_thresholded_{mode}_{additional_background_substraction}")
+        os.makedirs(pic_folder_path + f"/../{pic_sub_folder_name}_thresholded_{mode}_{additional_background_substraction}")
     # We're gonna save the images here:
     os.chdir(pic_folder_path + f"/../{pic_sub_folder_name}_thresholded_{mode}_{additional_background_substraction}")
 
     if mode == "background_filtered_combo":
         additional_background_substraction = True
 
-    for file in tqdm(glob.glob(pic_folder_path+"/*combined*"), desc=f"Applying {mode} thresholding"):
+    for file in tqdm(glob.glob(pic_folder_path+"/*"+ch_prefix+ch1_suffix+"*"), desc=f"Applying {mode} thresholding"):
         thresholded_file_name = file.replace("combined", f"_{mode}_thresholded_{additional_background_substraction}")
         thresholded_file_name = os.path.basename(thresholded_file_name)
         if os.path.isfile(thresholded_file_name):
             continue
 
-        img = read_image(file)
-
-        # Split the image into its three channels
-        ch1 = img[:, :, 0]
-        ch1 = substract_background(ch1, additional_background_substraction)
-        ch2 = img[:, :, 1]
-        ch2 = substract_background(ch2, additional_background_substraction)
-        ch3 = img[:, :, 2]
-        ch3 = substract_background(ch3, additional_background_substraction)
+        ch1, ch2, ch3, ch4 = read_4_color_channels_from_rgb(file)
 
         if gaussian_blur:
             # Apply a Gaussian blur filter to the image
@@ -105,87 +113,97 @@ def thresholding(pic_folder_path, pic_sub_folder_name, mode = "low_intensities_f
             ch1 = cv2.GaussianBlur(ch1, (0, 0), 0.5)
             ch2 = cv2.GaussianBlur(ch2, (0, 0), 0.5)
             ch3 = cv2.GaussianBlur(ch3, (0, 0), 0.5)
+            ch4 = cv2.GaussianBlur(ch4, (0, 0), 0.5)
+
+        ch1 = substract_background(ch1, additional_background_substraction)
+        ch2 = substract_background(ch2, additional_background_substraction)
+        ch3 = substract_background(ch3, additional_background_substraction)
+        ch4 = substract_background(ch4, additional_background_substraction)
+
 
         if mode == "triangle":
             # Apply triangle thresholding to every channel
-            _, th1 = cv2.threshold(ch1, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_TRIANGLE)
-            _, th2 = cv2.threshold(ch2, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_TRIANGLE)
-            _, th3 = cv2.threshold(ch3, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_TRIANGLE)
+            _, ch1 = cv2.threshold(ch1, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_TRIANGLE)
+            _, ch2 = cv2.threshold(ch2, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_TRIANGLE)
+            _, ch3 = cv2.threshold(ch3, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_TRIANGLE)
+            _, ch4 = cv2.threshold(ch4, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_TRIANGLE)
 
         if mode == "adaptive":
             # Apply cv adaptive thresholding to every channel
-            th1 = cv2.adaptiveThreshold(ch1, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 21, 0)
-            th2 = cv2.adaptiveThreshold(ch2, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 21, 0)
-            th3 = cv2.adaptiveThreshold(ch3, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 21, 0)
+            ch1 = cv2.adaptiveThreshold(ch1, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 21, 0)
+            ch2 = cv2.adaptiveThreshold(ch2, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 21, 0)
+            ch3 = cv2.adaptiveThreshold(ch3, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 21, 0)
+            ch4 = cv2.adaptiveThreshold(ch4, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 21, 0)
 
         if mode == "otsu":
             # Apply Otsu's thresholding to every channel
-            _, th1 = cv2.threshold(ch1, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU)
-            _, th2 = cv2.threshold(ch2, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU)
-            _, th3 = cv2.threshold(ch3, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU)
+            _, ch1 = cv2.threshold(ch1, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU)
+            _, ch2 = cv2.threshold(ch2, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU)
+            _, ch3 = cv2.threshold(ch3, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU)
+            _, ch4 = cv2.threshold(ch4, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU)
 
         if mode == "otsu_on_dapi_only":
             # Apply Otsu's thresholding to only the DAPI channel
-            _, th1 = cv2.threshold(ch1, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU)
-            th2 = ch2
-            th3 = ch3
+            _, ch1 = cv2.threshold(ch1, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU)
 
         if mode == "otsu_on_dapi_intensity_greater_7_on_rest":
             # Apply Otsu's thresholding to only the DAPI channel
-            _, th1 = cv2.threshold(ch1, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU)
+            _, ch1 = cv2.threshold(ch1, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU)
             # Every value >1 remains the same, every value <=1 is set to 0
-            th2 = ch2
-            th3 = ch3
-            th2[th2 < 8] = 0
-            th3[th3 < 8] = 0 
+            ch2[ch2 < 8] = 0
+            ch3[ch3 < 8] = 0
+            ch4[ch4 < 8] = 0
 
         if mode == "triangle_on_dapi_intensity_greater_1_on_rest":
             # Apply Otsu's thresholding to only the DAPI channel
-            _, th1 = cv2.threshold(ch1, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_TRIANGLE)
+            _, ch1 = cv2.threshold(ch1, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_TRIANGLE)
             # Every value >1 remains the same, every value <=1 is set to 0
-            th2 = ch2
-            th3 = ch3
-            th2[th2 < 2] = 0
-            th3[th3 < 2] = 0
+            ch2[ch2 < 2] = 0
+            ch3[ch3 < 2] = 0
+            ch4[ch4 < 2] = 0
 
         if mode == "super_low_intensities_5_filtered":
-            th1 = ch1
-            th2 = ch2
-            th3 = ch3
             # Every value >5 remains the same, every value <=5 is set to 0
-            th1[th1 < 6] = 0
-            th2[th2 < 6] = 0
-            th3[th3 < 6] = 0
+            ch1[ch1 < 6] = 0
+            ch2[ch2 < 6] = 0
+            ch3[ch3 < 6] = 0
+            ch4[ch4 < 6] = 0
 
         if mode == "low_intensities_filtered":
-            th1 = ch1
-            th2 = ch2
-            th3 = ch3
-            th1[th1 < 11] = 0
-            th2[th2 < 11] = 0
-            th3[th3 < 11] = 0
+            ch1[ch1 < 11] = 0
+            ch2[ch2 < 11] = 0
+            ch3[ch3 < 11] = 0
+            ch4[ch4 < 11] = 0
 
         if mode == "blue_otsu_red_triangle_green_5":
-            _, th1 = cv2.threshold(ch1, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU)
-            th2 = ch2; th2[th2 < 5] = 0
-            _, th3 = cv2.threshold(ch3, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_TRIANGLE)
+            _, ch1 = cv2.threshold(ch1, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU)
+            ch2[ch2 < 5] = 0
+            _, ch3 = cv2.threshold(ch3, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_TRIANGLE)
 
         # For cortical organoids I used: 
         if mode == "background_filtered_combo":
-            _, th1 = cv2.threshold(ch1, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU)
-            _, th2 = cv2.threshold(ch2, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_TRIANGLE)
-            _, th3 = cv2.threshold(ch3, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_TRIANGLE)
+            _, ch1 = cv2.threshold(ch1, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU)
+            _, ch2 = cv2.threshold(ch2, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_TRIANGLE)
+            _, ch3 = cv2.threshold(ch3, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_TRIANGLE)
 
         # For NPCs we can use the following:
         if mode == "otsu_triangle_otsu_bg_gauss":
-            _, th1 = cv2.threshold(ch1, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU)
-            _, th2 = cv2.threshold(ch2, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_TRIANGLE)
-            _, th3 = cv2.threshold(ch3, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU)
+            _, ch1 = cv2.threshold(ch1, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU)
+            _, ch2 = cv2.threshold(ch2, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_TRIANGLE)
+            _, ch3 = cv2.threshold(ch3, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU)
+            _, ch4 = cv2.threshold(ch4, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU)
+
+        if mode == "otsu_otsu_otsu_otsu_gauss":
+            _, ch1 = cv2.threshold(ch1, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU)
+            _, ch2 = cv2.threshold(ch2, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU)
+            _, ch3 = cv2.threshold(ch3, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU)
+            _, ch4 = cv2.threshold(ch4, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU)
 
 
-        # Merge the three channels into one image
-        combined_img = cv2.merge((th1, th2, th3)) # type: ignore
-        cv2.imwrite(os.getcwd()+"\\"+thresholded_file_name, combined_img)
+        cv2.imwrite(os.getcwd()+"/"+thresholded_file_name, ch1)
+        cv2.imwrite(os.getcwd()+"/"+thresholded_file_name.replace(ch_prefix+ch1_suffix, ch_prefix+ch2_suffix), ch2)
+        cv2.imwrite(os.getcwd()+"/"+thresholded_file_name.replace(ch_prefix+ch1_suffix, ch_prefix+ch3_suffix), ch3)
+        cv2.imwrite(os.getcwd()+"/"+thresholded_file_name.replace(ch_prefix+ch1_suffix, ch_prefix+ch4_suffix), ch4)
     return
 
 if __name__ == "__main__":
