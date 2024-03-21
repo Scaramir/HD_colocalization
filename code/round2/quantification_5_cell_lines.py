@@ -53,15 +53,27 @@ treatment_list = ["round2"]
 
 #within a treatment, we have the follwoing cell lines in separate folders
 cell_line_list = ["CHCHD2-AAV", "DMSO", "GFP-AAV", "NZ", "UT"]
+# TODO: Compare two sets of experiments separately
+# cell_line_list = ["CHCHD2-AAV", "GFP-AAV"]
+# cell_line_list = ["DMSO", "NZ", "UT"]
+
 
 # Select the previously executed thrsholding mode, on which the quantification will be performed
-threshold_mode = "otsu_otsu_otsu_otsu_gauss_False"
+# threshold_mode = "otsu_otsu_otsu_otsu_gauss_False"
+threshold_mode = "otsu_triangle_otsu_triangle_gauss_False"
 
 # Set to True or False, wheter you applied a gaussian filter or not
 gauss_blur_filter = True   
 
 # Want the area of CHCHD2 and TOM20 (colocalization) saved as an image? 
 save_mask_as_bmp = False    
+
+# Do you want to only analyze the pixels within your Regions Of Interest mask?
+#  The Mask file can be obtained after annotating the images in QuPath and exporting the annotations as a json file
+#  The json needs to be converted to a mask file with the script "convert_label.py". 
+#  The resulting files need to be in the specified treatment folder in a subdirectory called "masks". 
+roi_mask = False
+
 # ----------------------------------------------------------------------------------------------- #
 
 import pandas as pd
@@ -72,6 +84,7 @@ import cv2
 import seaborn as sns
 import matplotlib.pyplot as plt
 from itertools import combinations
+from pathlib import Path
 import gc
 from tqdm import tqdm
 # Easy to use, but deprecated in favor of statannotations package: 
@@ -84,17 +97,30 @@ os.chdir(pic_folder_path)
 # Read the *.bmp file
 # NOTE: opencv reads the image in BGR format
 # input: "file name" string
-def read_bmp(file):
-    img = cv2.imread(file, -1)
+def read_bmp(file_name):
+    img = cv2.imread(file_name, -1)
     return img
 
-def read_4_color_channels_from_greyscale(file_name):
+def keep_only_area_of_mask(channel, mask):
+    return cv2.bitwise_and(channel, mask)
+
+def read_4_color_channels_from_greyscale(file_name, roi_mask=False):
     base_channel = ch_prefix + ch1_suffix
     ch1 = cv2.imread(file_name, -1)
     ch2 = cv2.imread(file_name.replace(base_channel, ch_prefix + ch2_suffix), -1)
     ch3 = cv2.imread(file_name.replace(base_channel, ch_prefix + ch3_suffix), -1)
     ch4 = cv2.imread(file_name.replace(base_channel, ch_prefix + ch4_suffix), -1)
+
+    if roi_mask:
+        roi_mask_name = file_name.replace("thresholded", "rois")
+        mask = cv2.imread(roi_mask_name, -1)
+        ch1 = keep_only_area_of_mask(ch1, mask)
+        ch2 = keep_only_area_of_mask(ch2, mask)
+        ch3 = keep_only_area_of_mask(ch3, mask)
+        ch4 = keep_only_area_of_mask(ch4, mask)
     return ch1, ch2, ch3, ch4
+
+
 
 def create_mask(ch2, ch3, file, save_mask = False):
     # Split the image into its three channels
@@ -115,7 +141,7 @@ def create_mask(ch2, ch3, file, save_mask = False):
     return mask_chchd2_and_tom20
 
 
-def calculate_mean_intensity_of_2_markers(pic_folder_path, treatment_var="normal", threshold_mode="triangle_on_dapi_intensity_greater_1_on_rest", gaussian_filter=False, save_mask=False):
+def calculate_mean_intensity_of_2_markers(pic_folder_path, treatment_var="normal", threshold_mode="triangle_on_dapi_intensity_greater_1_on_rest", gaussian_filter=False, save_mask=False, roi_mask=False):
     # Lists, in which all values of interest will be stored:
     file_names = []
 
@@ -131,6 +157,10 @@ def calculate_mean_intensity_of_2_markers(pic_folder_path, treatment_var="normal
     mean_intensities_ch2 = []
     mean_intensities_ch3 = []
     mean_intensities_ch4 = []
+
+    mean_intensities_ch2_norm = []
+    mean_intensities_ch3_norm = []
+    mean_intensities_ch4_norm = []
 
     mean_intensities_ch2_at_dapi = []
     mean_intensities_ch2_in_mask = []
@@ -261,6 +291,7 @@ def calculate_mean_intensity_of_2_markers(pic_folder_path, treatment_var="normal
                         "CHCHD2 intensity (mean)": mean_intensities_ch2,
                         "TOM-20 intensity (mean)": mean_intensities_ch3,
                         "EGFP intensity (mean)": mean_intensities_ch4,
+                        # mean intensities of channels in the CHCHD2-TOM20 colocalization mask:
                         "CHCHD2 mean intensity (colocalized with DAPI)": mean_intensities_ch2_at_dapi,
                         "CHCHD2 mean intensity (colocalized with TOM-20)": mean_intensities_ch2_in_mask,
                         "TOM-20 mean intensity (colocalized with CHCHD2)": mean_intensities_ch3_in_mask,
@@ -303,8 +334,7 @@ def sort_df_by_cell_line(quantification_df):
 # Plot the boxplots of the quantification dataframe with seaborn and save them as `.png files`
 def box_plt_by_cell_line(quantification_df, value_to_plot, pic_folder_path, condition, threshold_mode, show="True"):
     plt.clf()
-    sns.set(style="whitegrid")
-    sns.set_context("talk")
+    sns.set_theme(context="paper", style="whitegrid")
 
     sns.catplot(x="Cell line",
                 y=value_to_plot,
@@ -325,14 +355,14 @@ def box_plt_by_cell_line(quantification_df, value_to_plot, pic_folder_path, cond
                         linewidth=0.5)
 
     # TODO: Change the names of the cell lines to the correct ones
-    all_box_pairs = list(combinations(treatment_list, 2))
+    all_box_pairs = list(combinations(cell_line_list, 2))
     # TODO: adjust the statistical test to the correct one. 
     #       Mann-Whitney is used when the data is not normally distributed
     #       t-welch-test is used when the data is normally distributed and the variances are not equal
     #       t-test is used when the data is normally distributed and the variances are equal
-    # add_stat_annotation(ax, data=quantification_df, x="Cell line", y=value_to_plot,
-    #                     box_pairs=all_box_pairs,
-    #                     test="Mann-Whitney", comparisons_correction="bonferroni", text_format="star", loc="outside", verbose=2)
+    add_stat_annotation(ax, data=quantification_df, x="Cell line", y=value_to_plot,
+                        box_pairs=all_box_pairs,
+                        test="Mann-Whitney", comparisons_correction="bonferroni", text_format="star", loc="outside", verbose=2)
 
     plt.savefig(pic_folder_path + "/mannwhitneyplot_" + value_to_plot + "_" + condition + ".png", bbox_inches='tight')
     if show:
@@ -341,7 +371,7 @@ def box_plt_by_cell_line(quantification_df, value_to_plot, pic_folder_path, cond
 
 # Run the calculation for every treatment of the list of treatments and append the results to the dataframe
 # Create plots for each treatment within its seperated folder
-def quantification(treatment_list, threshold_mode="triangle_on_dapi_intensity_greater_1_on_rest", gaussian_filter=False, save_mask=False, pic_folder_path=pic_folder_path):
+def quantification(treatment_list, threshold_mode="triangle_on_dapi_intensity_greater_1_on_rest", gaussian_filter=False, save_mask=False, pic_folder_path=pic_folder_path, roi_mask=False):
     # Loop through the treatments to quantify each treatment seperately
     complete_df = pd.DataFrame()
     for treatment in treatment_list:
@@ -351,7 +381,7 @@ def quantification(treatment_list, threshold_mode="triangle_on_dapi_intensity_gr
         os.chdir(pic_folder_path)
         print(f"Calculating condition \"" + treatment + "\"")
 
-        current_quant_df = calculate_mean_intensity_of_2_markers(pic_folder_path, treatment_var=treatment, gaussian_filter=gaussian_filter, threshold_mode=threshold_mode, save_mask=save_mask)
+        current_quant_df = calculate_mean_intensity_of_2_markers(pic_folder_path, treatment_var=treatment, gaussian_filter=gaussian_filter, threshold_mode=threshold_mode, save_mask=save_mask, roi_mask=roi_mask)
         # add quant data to the complete dataframe
         complete_df = pd.concat([complete_df, current_quant_df], ignore_index=True)
 
@@ -363,4 +393,4 @@ def quantification(treatment_list, threshold_mode="triangle_on_dapi_intensity_gr
 
 # Run the quantification function
 if __name__ == "__main__":
-    complete_df = quantification(treatment_list, threshold_mode, gaussian_filter=gauss_blur_filter, save_mask=save_mask_as_bmp)
+    complete_df = quantification(treatment_list, threshold_mode, gaussian_filter=gauss_blur_filter, save_mask=save_mask_as_bmp, roi_mask=roi_mask)

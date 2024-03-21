@@ -22,9 +22,8 @@ ch3_suffix = "2" # TOM20
 ch4_suffix = "3" # CHCHD2
 
 # Choose a threshold mode
-#threshold_mode = "background_filtered_combo"
-# threshold_mode = "otsu_triangle_otsu_bg_gauss"
-threshold_mode = "otsu_otsu_otsu_otsu_gauss"
+threshold_mode = "otsu_triangle_otsu_triangle_gauss"
+# threshold_mode = "otsu_otsu_otsu_otsu_gauss"
 # Other options:
 #  - "super_low_intensities_5_filtered"
 #  - "triangle_on_dapi_intensity_greater_1_on_rest"
@@ -187,11 +186,11 @@ def thresholding(pic_folder_path, pic_sub_folder_name, mode = "low_intensities_f
             _, ch3 = cv2.threshold(ch3, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_TRIANGLE)
 
         # For NPCs we can use the following:
-        if mode == "otsu_triangle_otsu_bg_gauss":
+        if mode == "otsu_triangle_otsu_triangle_gauss":
             _, ch1 = cv2.threshold(ch1, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU)
             _, ch2 = cv2.threshold(ch2, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_TRIANGLE)
             _, ch3 = cv2.threshold(ch3, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU)
-            _, ch4 = cv2.threshold(ch4, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU)
+            _, ch4 = cv2.threshold(ch4, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_TRIANGLE)
 
         if mode == "otsu_otsu_otsu_otsu_gauss":
             _, ch1 = cv2.threshold(ch1, 0, 255, cv2.THRESH_TOZERO + cv2.THRESH_OTSU)
