@@ -16,21 +16,7 @@ def baseImageName = getProjectEntry().getImageName()
 
 def exportPath = buildFilePath(PROJECT_BASE_DIR, 'export')
 
-// export ROIs
-
-def roisPath = buildFilePath(exportPath, 'ROIsTif')
-mkdirs(roisPath)
-
-getAnnotationObjects().eachWithIndex{it, x->
-        println("Working on: "+it)
-	def roi = it.getROI()
-	def requestROI = RegionRequest.createInstance(server.getPath(), 1, roi)
-	currentImagePath = buildFilePath(roisPath, baseImageName +it+'_'+ x + '.tif')
-	writeImageRegion(server, requestROI, currentImagePath)
-}
-
 // export geojsons
-
 def geojsonPath = buildFilePath(exportPath, 'geojsons')
 mkdirs(geojsonPath)
 
