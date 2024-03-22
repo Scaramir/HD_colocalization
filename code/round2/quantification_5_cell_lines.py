@@ -53,6 +53,7 @@ treatment_list = ["round2"]
 
 #within a treatment, we have the follwoing cell lines in separate folders
 cell_line_list = ["CHCHD2-AAV", "DMSO", "GFP-AAV", "NZ", "UT"]
+cell_line_list = ["CHCHD2-AAV", "GFP-AAV"]
 # TODO: Compare two sets of experiments separately
 # cell_line_list = ["CHCHD2-AAV", "GFP-AAV"]
 # cell_line_list = ["DMSO", "NZ", "UT"]
@@ -66,13 +67,14 @@ threshold_mode = "otsu_triangle_otsu_triangle_gauss_False"
 gauss_blur_filter = True   
 
 # Want the area of CHCHD2 and TOM20 (colocalization) saved as an image? 
-save_mask_as_bmp = False    
+save_mask_as_bmp = True    
 
 # Do you want to only analyze the pixels within your Regions Of Interest mask?
 #  The Mask file can be obtained after annotating the images in QuPath and exporting the annotations as a json file
 #  The json needs to be converted to a mask file with the script "convert_label.py". 
 #  The resulting files need to be in the specified treatment folder in a subdirectory called "masks". 
-roi_mask = False
+#  The masks are based on c01, so the mask file should be named like the image file, but with the suffix "_segmentation.tiff"
+roi_mask = True
 
 # ----------------------------------------------------------------------------------------------- #
 
@@ -104,7 +106,7 @@ def read_bmp(file_name):
 def keep_only_area_of_mask(channel, mask):
     return cv2.bitwise_and(channel, mask)
 
-def read_4_color_channels_from_greyscale(file_name, roi_mask=False):
+def read_4_color_channels_from_greyscale(file_name, roi_mask=False, save_mask=False):
     base_channel = ch_prefix + ch1_suffix
     ch1 = cv2.imread(file_name, -1)
     ch2 = cv2.imread(file_name.replace(base_channel, ch_prefix + ch2_suffix), -1)
@@ -112,17 +114,22 @@ def read_4_color_channels_from_greyscale(file_name, roi_mask=False):
     ch4 = cv2.imread(file_name.replace(base_channel, ch_prefix + ch4_suffix), -1)
 
     if roi_mask:
-        roi_mask_name = file_name.replace("thresholded", "rois")
-        mask = cv2.imread(roi_mask_name, -1)
+        roi_mask_name = Path(file_name).parent.parent / "masks" / (str(Path(file_name.replace(base_channel, ch_prefix + ch2_suffix)).name) + "_segmentation.tiff")
+        mask = cv2.imread(str(roi_mask_name), -1)
         ch1 = keep_only_area_of_mask(ch1, mask)
         ch2 = keep_only_area_of_mask(ch2, mask)
         ch3 = keep_only_area_of_mask(ch3, mask)
         ch4 = keep_only_area_of_mask(ch4, mask)
+
+    if save_mask:
+        sanity_mask_name = str(roi_mask_name).replace("_segmentation", "_coloc")
+        cv2.imwrite(sanity_mask_name, ch1)
+
     return ch1, ch2, ch3, ch4
 
 
 
-def create_mask(ch2, ch3, file, save_mask = False):
+def create_mask(ch2, ch3, file, save_mask=False):
     # Split the image into its three channels
     # ch1, ch2, ch3 = cv2.split(img)
     # Create a mask, containing the pixels that are not black in the two desired channels
@@ -134,7 +141,7 @@ def create_mask(ch2, ch3, file, save_mask = False):
     # Save the mask as a `.bmp file`
     # TODO: change
     if save_mask & (not os.path.isfile(file.replace("thresholded", "mask"))):
-        cv2.imwrite(os.path.basename(file.replace("thresholded", "mask")), mask_chchd2_and_tom20)
+        cv2.imwrite(str(Path(file).parent.parent / "masks" / str(Path(file).name).replace("_segmentation", "_colocCHCHD2TOM20")), mask_chchd2_and_tom20)
 
     # Transform mask_chchd2_and_tom20_df to a binary mask
     mask_chchd2_and_tom20 = mask_chchd2_and_tom20 > 0
@@ -157,10 +164,6 @@ def calculate_mean_intensity_of_2_markers(pic_folder_path, treatment_var="normal
     mean_intensities_ch2 = []
     mean_intensities_ch3 = []
     mean_intensities_ch4 = []
-
-    mean_intensities_ch2_norm = []
-    mean_intensities_ch3_norm = []
-    mean_intensities_ch4_norm = []
 
     mean_intensities_ch2_at_dapi = []
     mean_intensities_ch2_in_mask = []
@@ -188,14 +191,14 @@ def calculate_mean_intensity_of_2_markers(pic_folder_path, treatment_var="normal
         for file in tqdm(glob.glob(cell_line_folder_path + "_thresholded_" + threshold_mode + "/*" + ch_prefix + ch1_suffix + "*.tiff"), desc="Counting pixels for " + cell_line_folder):
             # img = read_bmp(file)
 
-            ch1, ch2, ch3, ch4 = read_4_color_channels_from_greyscale(file)
+            ch1, ch2, ch3, ch4 = read_4_color_channels_from_greyscale(file, save_mask=save_mask, roi_mask=roi_mask)
 
             # NOTE: swap ch2 and ch4 , because original ch2 is EGFP and ch4 is CHCHD2 in this case. 
             # so let's swap and just add egfp as ch4 to the analysis 
             ch2, ch4 = ch4, ch2
 
             # Split the image into its three channels and create the colocalization mask:
-            mask_chchd2_and_tom20_bin = create_mask(ch2, ch3, file, save_mask)
+            mask_chchd2_and_tom20_bin = create_mask(ch2, ch3, file, save_mask=False)
             # Create a mask, where Dapi and CHCHD2 are colocalized
             dapi_chchd2_mask = cv2.bitwise_and(ch1, ch2)
             dapi_chchd2_mask = dapi_chchd2_mask > 0
@@ -206,6 +209,10 @@ def calculate_mean_intensity_of_2_markers(pic_folder_path, treatment_var="normal
             ch2_count_total = ch2[ch2 > 0].size
             ch3_count_total = ch3[ch3 > 0].size
             ch4_count_total = ch4[ch4 > 0].size
+
+            # if image is empty / no Signal on ch1 (DAPI), skip the image
+            if ch1_count_total == 0:
+                continue
 
             # Normalize the amounts of each marker by the total amount of DAPI-pixels
             # aka normalizing by nuclei area
@@ -362,9 +369,9 @@ def box_plt_by_cell_line(quantification_df, value_to_plot, pic_folder_path, cond
     #       t-test is used when the data is normally distributed and the variances are equal
     add_stat_annotation(ax, data=quantification_df, x="Cell line", y=value_to_plot,
                         box_pairs=all_box_pairs,
-                        test="Mann-Whitney", comparisons_correction="bonferroni", text_format="star", loc="outside", verbose=2)
+                        test="t-test_welch", comparisons_correction="bonferroni", text_format="star", loc="outside", verbose=2)
 
-    plt.savefig(pic_folder_path + "/mannwhitneyplot_" + value_to_plot + "_" + condition + ".png", bbox_inches='tight')
+    plt.savefig(pic_folder_path + "/ttestwelchplot_" + value_to_plot + "_" + condition + ".png", bbox_inches='tight')
     if show:
         plt.show()
     return
