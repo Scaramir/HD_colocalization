@@ -1,3 +1,4 @@
+[![DOI](https://zenodo.org/badge/594309034.svg)](https://zenodo.org/doi/10.5281/zenodo.12594011)
 # Quantification & Colocalization
 
 This repository contains the files used to quantify and analyze the colocalization of three different fluorescent markers per image of a cell culture. This works with whole folder structure, where each folder within a working directory contains the images of one cell line or treatment condition. If there is just one folder, the analysis is done for all images in this folder and compares the cell lines or treatment in regards to their file names. Some modifications need to be done to the scripts to make them work for different data sets.  
