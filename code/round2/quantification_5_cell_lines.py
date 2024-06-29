@@ -9,19 +9,13 @@ All those values will be plotted and saved as a `.csv file`.
 Change your file path to <where all your image folders to analyze are located>.
 The folder name with the images in it should include <"_thresholded_" + threshold_mode> by now.
 Example path, where the programm expects some files: 
-<"S:/mdc_work/mdc_huntington/images/treated/hypoxy_thresholded_super_low_intensities_filtered">
+<"images/treated/hypoxy_thresholded_super_low_intensities_filtered">
 Select a previously applied thresholding method (threshold_type).
 Select if the previously applied gaussian filter was used or not (gaussian_filter).
 These declarations are necessary for the script to find the correct files.
 Select, if you want to save the colocalization-masks as `.bmp files` or not.
 
-Notice that i will only work and generate plots, if you adjsuted the parts noted with `TODO`.
-
-In case some images are doubled, they can be previously filtered out by searching for "t0" or "Hoechst":
-✗ cd Antimycin\ A_thresholded_super_low_intensities_filtered
-✗ rm *t0*
-✗ rm *Hoechst*
-This deletes all files, that contain "t0" or "Hoechst" in their name (case sensitive).
+Notice that this will only work and generate plots, if you adjsuted the parts noted with `TODO`.
 
 (c) 2023, Maximilian Otto, Berlin.
 """
@@ -47,20 +41,14 @@ ch4_suffix = "3" # CHCHD2
 #pic_condition_folder_path = "combined"
 pic_condition_folder_path = "UT"
 
-
 # The quantification will be applied to the following list of folders/conditions:
 treatment_list = ["round2"]
 
 #within a treatment, we have the follwoing cell lines in separate folders
-cell_line_list = ["CHCHD2-AAV", "DMSO", "GFP-AAV", "NZ", "UT"]
+# cell_line_list = ["CHCHD2-AAV", "DMSO", "GFP-AAV", "NZ", "UT"]
 cell_line_list = ["CHCHD2-AAV", "GFP-AAV"]
-# TODO: Compare two sets of experiments separately
-# cell_line_list = ["CHCHD2-AAV", "GFP-AAV"]
-# cell_line_list = ["DMSO", "NZ", "UT"]
-
 
 # Select the previously executed thrsholding mode, on which the quantification will be performed
-# threshold_mode = "otsu_otsu_otsu_otsu_gauss_False"
 threshold_mode = "otsu_triangle_otsu_triangle_gauss_False"
 
 # Set to True or False, wheter you applied a gaussian filter or not

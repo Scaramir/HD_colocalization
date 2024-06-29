@@ -1,7 +1,7 @@
 # Quantification & Colocalization
 
 ## Methods
-The following contains a description of the methods used in the scripts written in \texttt{Python 3.8.15} to obtain a quantification. 
+The following contains a description of the methods used in the scripts written in \texttt{Python 3.8.15} to obtain a quantification for the three-channel colocalization analysis. 
 
 ### Preprocessing
 In short, the script (`data_preparation.py`) combines the individual grey-scale images of all three different markers into one image and stored as a bitmap, where TOM20 is stored in the red colour channel, hence CHCHD2 is green and DAPI blue.  

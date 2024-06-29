@@ -7,8 +7,8 @@ This makes it easier to preprocess whole folders with the same technique instead
 
 # ----------------------------------------------------------------------------------------------- #
 # Set the working directory, where all the data is stored:
-#wd = "S:/mdc_work/mdc_huntington/images/Cortical Organoids"
-wd = "S:/mdc_work/mdc_huntington/images/305_308_70qP_306_050_in_one_plot/images/raw_data"
+#wd = "images/Cortical Organoids"
+wd = "images/305_308_70qP_306_050_in_one_plot/images/raw_data"
 
 # The threshold will be applied to the following folders/conditions:
 #folders_list = ["Antimycin A", "EDHB", "hypoxy", "normal"]

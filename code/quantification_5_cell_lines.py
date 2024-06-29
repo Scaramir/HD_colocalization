@@ -9,19 +9,13 @@ All those values will be plotted and saved as a `.csv file`.
 Change your file path to <where all your image folders to analyze are located>.
 The folder name with the images in it should include <"_thresholded_" + threshold_mode> by now.
 Example path, where the programm expects some files: 
-<"S:/mdc_work/mdc_huntington/images/treated/hypoxy_thresholded_super_low_intensities_filtered">
+<"images/treated/hypoxy_thresholded_super_low_intensities_filtered">
 Select a previously applied thresholding method (threshold_type).
 Select if the previously applied gaussian filter was used or not (gaussian_filter).
 These declarations are necessary for the script to find the correct files.
 Select, if you want to save the colocalization-masks as `.bmp files` or not.
 
-Notice that i will only work and generate plots, if you adjsuted the parts noted with `TODO`.
-
-In case some images are doubled, they can be previously filtered out by searching for "t0" or "Hoechst":
-✗ cd Antimycin\ A_thresholded_super_low_intensities_filtered
-✗ rm *t0*
-✗ rm *Hoechst*
-This deletes all files, that contain "t0" or "Hoechst" in their name (case sensitive).
+Notice that this script will only work and generate plots, if you adjsuted the parts noted with `TODO`.
 
 (c) 2023, Maximilian Otto, Berlin.
 """
@@ -29,12 +23,16 @@ This deletes all files, that contain "t0" or "Hoechst" in their name (case sensi
 # TODO: Change settings:
 
 # Path of the folder containing all thresholded folders
-wd = "S:/images/"
+#wd = "images/NPCs new/"
+#wd = "images/Cortical Organoids/"
+wd = "images/305_308_70qP_306_050_in_one_plot/images/"
 
 # Set the normal/control condition folder name so you can compare multiple conditions
 # Set to "" if you just have one folder. This folder may contain multiple cell lines.
+#pic_condition_folder_path = "raw_data"
+#pic_condition_folder_path = "combined"
 pic_condition_folder_path = ""
-# Other treatment examples to campare to:
+# Other treatments:
 # - Antimycin A
 # - EDHB
 # - hypoxy
@@ -42,10 +40,13 @@ pic_condition_folder_path = ""
 
 # The quantification will be applied to the following list of folders/conditions:
 #treatment_list = ["normal", "Antimycin A", "EDHB", "hypoxy"]
+#treatment_list = ["combined"]
 treatment_list = [""]
 
 # Select the previously executed thrsholding mode, on which the quantification will be performed
+#threshold_mode = "background_filtered_combo_bs"
 threshold_mode = "otsu_triangle_otsu_bg_gauss_True"
+#threshold_mode = "background_filtered_combo_True_gauss"
 #threshold_mode = "super_low_intensities_5_filtered_bs"
 # Other options:
 #  - "triangle_on_dapi_intensity_greater_1_on_rest"
@@ -254,13 +255,14 @@ def calculate_mean_intensity_of_2_markers(pic_folder_path, treatment_var="normal
     # Get the cell line from the file name
     # TODO FIXME NOTE:
     # change this for the different file name structures to use this script with different data sets
+    # quantification_df["Cell line"] = quantification_df["File name"].str.split("_", expand=True)[2] #organoids or NPCs new
     quantification_df["Cell line"] = quantification_df["File name"].str.split("_", expand=True)[1]
 
     # Save the dataframe to a csv file
     quantification_df.to_csv(pic_folder_path + "_thresholded_" + threshold_mode + "/quantification.csv", index=False)
     return quantification_df
 
-# Run the quantification function only
+# Run the quantification function
 #quantification_df = calculate_mean_intensity_of_2_markers(pic_folder_path, treatment_var="normal", gaussian_filter=gauss_blur_filter, threshold_mode=threshold_mode, save_mask=save_mask_as_bmp)
 
 

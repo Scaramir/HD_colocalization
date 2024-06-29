@@ -1,15 +1,18 @@
 """
 -> Because all images were available in 8bit format (which got checked with this script too), 
-    the script combines them to RGB8 images. 
+    we simply combine the three individual gray-scale images to RGB8 images.
 (c) 2023, Maximilian Otto, Berlin.
 """
 
 # ----------------------------------------------------------------------------------------------- #
 # Global parameters:
 # Set the working directory, where all the data is stored:
-wd = "S:/images/305_308_70qP"
+#wd = "images/Cortical Organoids"
+#wd = "images/NPCs new/"
+wd = "images/305_308_70qP"
 
 # The pre-processing will be applied to the following folders/conditions:
+#folders_list = ["combined"]
 folders_list = ["raw_data"]
 
 # Merge three fluorescent channels of the same image into one image.
@@ -43,22 +46,25 @@ import glob, os
 import cv2
 from tqdm import tqdm
 
-# Input: amount of bits, e.g. the amount of bits used to store a greyscale image.       
-# Return: Max. value of a certain amount of bits. 
+# Input: amount of bits, e.g. the amount of bits used to store a greyscale image.
+# Return: Max. value of a certain amount of bits.
 # Note: used to get the max. value of a certain "bit-depth"of an image.
 def max_bits(min_bit_depth):
     return (1 << min_bit_depth) - 1
 
-# Imaging data in 24bit-tif should have one pixel value higher than 16bit-color values. 
+# Imaging data in 24bit-tif should have one pixel value higher than 16bit-color values.
 # input: current file name string, max. value of the min. bit-depth (e.g. 255 for 8bit)
-# return: Boolean
+# return: True if the image contains a bright pixel 
 def is_it_really_16_bit(file, max_value_of_min_bit_depth):
     pic_brighter_than_min_bit_depth = False
-    f = open(file, 'rb')
-    tags = exifread.process_file(f) #type: ignore
-    # Check max. brightness of the image (Larger than max(8bit)):
-    if "Image SMaxSampleValue" in tags and str(tags["Image SMaxSampleValue"].values) > max_value_of_min_bit_depth:
-        pic_brighter_than_min_bit_depth = True
+    with open(file, 'rb') as f: 
+        tags = exifread.process_file(f) # type: ignore
+    # Check if the "Image SMaxSampleValue" tag exists:
+    if "Image SMaxSampleValue" in tags:
+        max_sample_value = tags["Image SMaxSampleValue"].values
+        # Check max. brightness of the image (Larger than max(8bit)):
+        if int(max_sample_value) > max_value_of_min_bit_depth:
+            pic_brighter_than_min_bit_depth = True
     return pic_brighter_than_min_bit_depth
 
 # Check each image of a folder for its brightness. Print out the number of images that are darker than 12bit.
@@ -87,7 +93,8 @@ def check_bit_depth(pic_folder_path):
     return pics_brighter_than_16_bit
 # test the first folder. The others are ususally stored in the same format.
 #check_bit_depth(pic_folder_path)                
-
+# none ok so far. --> they are stored and interpreted as rgb8 images 
+# even though they are just greyscale and the microscope is probably capable of capturing higher ranges. 
 
 # Merge the three channels of the same image into one image.
 # input: "picture folder path" string

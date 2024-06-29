@@ -2,13 +2,13 @@
 This script is used to threshold images with different methods and save the thresholded images.
 The thresholded images are used to create the masks for the segmentation and naively analyse the data.
 This makes it easier to preprocess whole folders with the same technique instead of having to use ImageJ.
-(c) 2023, Maximilian Otto, Berlin.
+(c) 2024, Maximilian Otto, Berlin.
 """
 
 # ----------------------------------------------------------------------------------------------- #
 # Set the working directory, where all the data is stored:
-#wd = "S:/mdc_work/mdc_huntington/images/Cortical Organoids"
-wd = "S:/mdc_work/mdc_huntington/images/round2"
+#wd = "images/Cortical Organoids"
+wd = "images/round2"
 
 # The threshold will be applied to the following folders/conditions:
 #folders_list = ["Antimycin A", "EDHB", "hypoxy", "normal"]
@@ -23,8 +23,8 @@ ch4_suffix = "3" # CHCHD2
 
 # Choose a threshold mode
 threshold_mode = "otsu_triangle_otsu_triangle_gauss"
-# threshold_mode = "otsu_otsu_otsu_otsu_gauss"
 # Other options:
+#  - "otsu_otsu_otsu_otsu_gauss"
 #  - "super_low_intensities_5_filtered"
 #  - "triangle_on_dapi_intensity_greater_1_on_rest"
 #  - "otsu_on_dapi_intensity_greater_7_on_rest"
@@ -38,20 +38,12 @@ threshold_mode = "otsu_triangle_otsu_triangle_gauss"
 # Set an additional Background Substraction with Rolling ball method 
 # for all methods that don't have it already
 # set to True to activate, or False to disable
+# Round2 images were too big to apply this method
 additional_background_substraction = False
 
 # Want to apply a gaussian blur filter too?
 # this affects the thresholding results and increases the overlap fluorecence signal
 gauss_blur_filter = True
-
-# NOTE: 
-# This script used:
-# Rolling ball method to substract the backhround noise
-# Apply a gaussian blur filter to the image to increase the overlap of the signals (fluorescence) 
-# Applied OTSU thresholding to the DAPI channel
-# Applied triangle thresholding to CHCHD2, because it has a lot of low intensity pixels
-# Applied OTSU thresholding to the TOM20 channel 
-# Simiar method for NPCs and Cortical Organoids is used, excpet the cv2-thresh methods are different. Besides that, the images got treated the same way :) 
 # ----------------------------------------------------------------------------------------------- #
 
 import os, glob
